@@ -23,19 +23,6 @@ class PropellerControlNode(Node):
         self.declare_parameter("anguler_pid_gain_i_max", 0.0)
         self.declare_parameter("anguler_pid_gain_antiwindup", False)
         self.declare_parameter("hull_width", 1.0)
-        self.linear_pid_gain_kp_:float = self.get_parameter("linear_pid_gain_kp").value
-        self.linear_pid_gain_ki_:float = self.get_parameter("linear_pid_gain_ki").value
-        self.linear_pid_gain_kd_:float = self.get_parameter("linear_pid_gain_kd").value
-        self.linear_pid_gain_i_min_:float = self.get_parameter("linear_pid_gain_i_min").value
-        self.linear_pid_gain_i_max_:float = self.get_parameter("linear_pid_gain_i_max").value
-        self.linear_pid_gain_antiwindup_:bool = self.get_parameter("linear_pid_gain_antiwindup").value
-        self.anguler_pid_gain_kp_:float = self.get_parameter("anguler_pid_gain_kp").value
-        self.anguler_pid_gain_ki_:float = self.get_parameter("anguler_pid_gain_ki").value
-        self.anguler_pid_gain_kd_:float = self.get_parameter("anguler_pid_gain_kd").value
-        self.anguler_pid_gain_i_min_:float = self.get_parameter("anguler_pid_gain_i_min").value
-        self.anguler_pid_gain_i_max_:float = self.get_parameter("anguler_pid_gain_i_max").value
-        self.anguler_pid_gain_antiwindup_:bool = self.get_parameter("anguler_pid_gain_antiwindup").value
-        self.hull_width_:float = self.get_parameter("hull_width").value
 
 
         self.left_prop_speed = 0.0
