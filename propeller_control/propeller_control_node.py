@@ -9,12 +9,57 @@ class PropellerControlNode(Node):
         self.left_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/left/thrust', 10)
         self.right_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/right/thrust', 10)
 
+        ## pidパラメータの設定
+        self.declare_parameter("linear_pid_gain_kp", 0.0)
+        self.declare_parameter("linear_pid_gain_ki", 0.0)
+        self.declare_parameter("linear_pid_gain_kd", 0.0)
+        self.declare_parameter("linear_pid_gain_i_min", 0.0)
+        self.declare_parameter("linear_pid_gain_i_max", 0.0)
+        self.declare_parameter("linear_pid_gain_antiwindup", False)
+        self.declare_parameter("anguler_pid_gain_kp", 0.0)
+        self.declare_parameter("anguler_pid_gain_ki", 0.0)
+        self.declare_parameter("anguler_pid_gain_kd", 0.0)
+        self.declare_parameter("anguler_pid_gain_i_min", 0.0)
+        self.declare_parameter("anguler_pid_gain_i_max", 0.0)
+        self.declare_parameter("anguler_pid_gain_antiwindup", False)
+        self.declare_parameter("hull_width", 1.0)
+        self.linear_pid_gain_kp_:float = self.get_parameter("linear_pid_gain_kp").value
+        self.linear_pid_gain_ki_:float = self.get_parameter("linear_pid_gain_ki").value
+        self.linear_pid_gain_kd_:float = self.get_parameter("linear_pid_gain_kd").value
+        self.linear_pid_gain_i_min_:float = self.get_parameter("linear_pid_gain_i_min").value
+        self.linear_pid_gain_i_max_:float = self.get_parameter("linear_pid_gain_i_max").value
+        self.linear_pid_gain_antiwindup_:bool = self.get_parameter("linear_pid_gain_antiwindup").value
+        self.anguler_pid_gain_kp_:float = self.get_parameter("anguler_pid_gain_kp").value
+        self.anguler_pid_gain_ki_:float = self.get_parameter("anguler_pid_gain_ki").value
+        self.anguler_pid_gain_kd_:float = self.get_parameter("anguler_pid_gain_kd").value
+        self.anguler_pid_gain_i_min_:float = self.get_parameter("anguler_pid_gain_i_min").value
+        self.anguler_pid_gain_i_max_:float = self.get_parameter("anguler_pid_gain_i_max").value
+        self.anguler_pid_gain_antiwindup_:bool = self.get_parameter("anguler_pid_gain_antiwindup").value
+        self.hull_width_:float = self.get_parameter("hull_width").value
+
+
         self.left_prop_speed = 0.0
         self.right_prop_speed = 0.0
 
         self.timer = self.create_timer(0.1, self.publish_speeds)
+        self.param_timer = self.create_timer(1.0, self.onTick)
         self.listener = keyboard.Listener(on_press=self.on_key_press, on_release=self.on_key_release)
         self.listener.start()
+
+    def onTick(self):
+        self.linear_pid_gain_kp_ = self.get_parameter("linear_pid_gain_kp").value
+        self.linear_pid_gain_ki_ = self.get_parameter("linear_pid_gain_ki").value
+        self.linear_pid_gain_kd_ = self.get_parameter("linear_pid_gain_kd").value
+        self.linear_pid_gain_i_min_ = self.get_parameter("linear_pid_gain_i_min").value
+        self.linear_pid_gain_i_max_ = self.get_parameter("linear_pid_gain_i_max").value
+        self.linear_pid_gain_antiwindup_ = self.get_parameter("linear_pid_gain_antiwindup").value
+        self.anguler_pid_gain_kp_ = self.get_parameter("anguler_pid_gain_kp").value
+        self.anguler_pid_gain_ki_ = self.get_parameter("anguler_pid_gain_ki").value
+        self.anguler_pid_gain_kd_ = self.get_parameter("anguler_pid_gain_kd").value
+        self.anguler_pid_gain_i_min_ = self.get_parameter("anguler_pid_gain_i_min").value
+        self.anguler_pid_gain_i_max_ = self.get_parameter("anguler_pid_gain_i_max").value
+        self.anguler_pid_gain_antiwindup_ = self.get_parameter("anguler_pid_gain_antiwindup").value
+        self.hull_width_ = self.get_parameter("hull_width").value
 
     def publish_speeds(self):
         # パブリッシュ
