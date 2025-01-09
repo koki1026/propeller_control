@@ -3,6 +3,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float64
 from pynput import keyboard
 from geometry_msgs.msg import Twist
+from sensor_msgs.msg import Imu
 from simple_pid import PID
 
 class PropellerControlNode(Node):
@@ -45,7 +46,7 @@ class PropellerControlNode(Node):
         ## terget_twistのsubscribe
         self.terget_twist_sub = self.create_subscription(Twist, '/wamv/cmd_vel', self.terget_twist_callback, 10)
         ## current_twistのsubscribe
-        self.current_twist_sub = self.create_subscription(Twist, '/wamv/sensors/imu', self.current_twist_callback, 10)
+        self.current_twist_sub = self.create_subscription(Imu, '/wamv/sensors/imu/imu/data', self.current_twist_callback, 10)
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
 
