@@ -5,6 +5,7 @@ from pynput import keyboard
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu
 from simple_pid import PID
+from sensor_msgs.msg import NavSatFix
 
 class PropellerControlNode(Node):
     def __init__(self):
@@ -47,6 +48,13 @@ class PropellerControlNode(Node):
         self.terget_twist_sub = self.create_subscription(Twist, '/wamv/cmd_vel', self.terget_twist_callback, 10)
         ## current_twistのsubscribe
         self.current_twist_sub = self.create_subscription(Imu, '/wamv/sensors/imu/imu/data', self.current_twist_callback, 10)
+        ## current_positionのsubscribe
+        self.current_position_sub = self.create_subscription(NavSatFix, '/wamv/sensors/gps/gps/fix', self.current_twist_callback, 10)
+        self.pre_position = NavSatFix()
+        self.pre_position.latitude = 0.0
+        self.pre_position.longitude = 0.0
+        self.pre_position.altitude = 0.0
+
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
 
@@ -83,7 +91,12 @@ class PropellerControlNode(Node):
 
     # 目標の速度を取得
     def current_twist_callback(self, msg):
-        self.current_twist = msg
+        self.current_twist.angular.z = msg.angular_velocity.z
+
+    def current_position_callback(self, msg):
+        
+        
+
 
     # 推進力の計算
     def force_cal(self):
@@ -92,8 +105,8 @@ class PropellerControlNode(Node):
         self.anguler_pid_.setpoint = self.target_twist.angular.z
 
         #現在値をもとに推進力を計算
-        linear_force = self.linear_pid_(self.current_twist.linear.x)
-        anguler_force = self.anguler_pid_(self.current_twist.angular.z)
+        linear_force = self.linear_pid_(self.current_twist.linear_acceleration.x)
+        anguler_force = self.anguler_pid_(self.current_twist.angular_velocity.z)
 
         # 推進力を左右の推進力に分割
         left_force = linear_force + 0.5 * anguler_force * self.hull_width_
