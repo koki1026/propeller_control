@@ -54,6 +54,10 @@ class PropellerControlNode(Node):
         self.pre_position.latitude = 0.0
         self.pre_position.longitude = 0.0
         self.pre_position.altitude = 0.0
+        self.position = NavSatFix()
+        self.position.latitude = 0.0
+        self.position.longitude = 0.0
+        self.position.altitude = 0.0
 
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
@@ -94,9 +98,16 @@ class PropellerControlNode(Node):
         self.current_twist.angular.z = msg.angular_velocity.z
 
     def current_position_callback(self, msg):
-        
-        
-
+        lat = msg.latitude
+        lon = msg.longitude
+        alt = msg.altitude
+        if self.pre_position.latitude == 0.0:
+            self.pre_position.latitude = lat
+            self.pre_position.longitude = lon
+            self.pre_position.altitude = alt
+        self.position.latitude = lat
+        self.position.longitude = lon
+        self.position.altitude = alt
 
     # 推進力の計算
     def force_cal(self):
