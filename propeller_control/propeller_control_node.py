@@ -62,6 +62,13 @@ class PropellerControlNode(Node):
         self.position.longitude = 0.0
         self.position.altitude = 0.0
 
+        ##sim時間の取得
+        self.sim_time_sub = self.create_subscription(Float64, '/simtime', self.sim_time_callback, 10)
+        #sim時間が一定時間経過したときにPIDの計算と推進力の計算を行う
+        self.sim_time = Float64()
+        self.sim_time_pre = Float64()
+        self.calc_flg = False #sim時間が一定時間経過したかどうかのフラグ
+
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
 
@@ -107,8 +114,20 @@ class PropellerControlNode(Node):
         self.position.longitude = lon
         self.position.altitude = alt
 
+    def sim_time_callback(self, msg):
+        self.sim_time = msg
+        if self.sim_time.data - self.sim_time_pre.data > 0.1:
+            self.calc_flg = True
+            self.sim_time_pre.data = self.sim_time.data
+
     # 推進力の計算
     def force_cal(self):
+        if self.calc_flg == False:
+            return
+        self.calc_flg = False
+
+        #速度を計算
+        self.current_twist.linear.x = (self.position.latitude - self.pre_position.latitude) / (self.sim_time.data - self.sim_time_pre.data)
         #目標値のセット
         self.linear_pid_.setpoint = self.target_twist.linear.x
         self.anguler_pid_.setpoint = self.target_twist.angular.z
