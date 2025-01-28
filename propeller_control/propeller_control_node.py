@@ -44,6 +44,9 @@ class PropellerControlNode(Node):
         self.linear_pid_ = PID(self.linear_pid_gain_kp_, self.linear_pid_gain_ki_, self.linear_pid_gain_kd_, 0.0)
         self.anguler_pid_ = PID(self.anguler_pid_gain_kp_, self.anguler_pid_gain_ki_, self.anguler_pid_gain_kd_, 0.0)
 
+        # Twist型の変数を定義
+        self.target_twist = Twist()
+        self.current_twist = Twist()
         ## terget_twistのsubscribe
         self.terget_twist_sub = self.create_subscription(Twist, '/wamv/cmd_vel', self.terget_twist_callback, 10)
         ## current_twistのsubscribe
@@ -66,11 +69,6 @@ class PropellerControlNode(Node):
         self.left_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/left/thrust', 10)
         self.right_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/right/thrust', 10)
 
-        # Twist型の変数を定義
-        self.target_twist = Twist()
-        self.current_twist = Twist()
-
-
         self.left_prop_speed = 0.0
         self.right_prop_speed = 0.0
 
@@ -89,11 +87,11 @@ class PropellerControlNode(Node):
         self.anguler_pid_gain_antiwindup_ = self.get_parameter("anguler_pid_gain_antiwindup").value
         self.hull_width_ = self.get_parameter("hull_width").value
 
-    # 現在の速度を取得
+    # 目標の速度及び角速度を取得
     def terget_twist_callback(self, msg):
         self.target_twist = msg
 
-    # 目標の速度を取得
+    # 現在の角速度を取得
     def current_twist_callback(self, msg):
         self.current_twist.angular.z = msg.angular_velocity.z
 
