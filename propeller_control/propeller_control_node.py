@@ -56,7 +56,7 @@ class PropellerControlNode(Node):
         ## current_twistのsubscribe
         self.current_twist_sub = self.create_subscription(Imu, '/wamv/sensors/imu/imu/data', self.current_twist_callback, 10)
         ## current_positionのsubscribe
-        self.current_position_sub = self.create_subscription(NavSatFix, '/wamv/sensors/gps/gps/fix', self.current_twist_callback, 10)
+        self.current_position_sub = self.create_subscription(NavSatFix, '/wamv/sensors/gps/gps/fix', self.current_position_callback, 10)
         self.pre_position = NavSatFix()
         self.pre_position.latitude = 0.0
         self.pre_position.longitude = 0.0
@@ -153,15 +153,15 @@ class PropellerControlNode(Node):
         self.calc_flg = False
 
         #速度を計算関数
-        self.velocity_cal()
+        self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude)
 
         #目標値のセット
         self.linear_pid_.setpoint = self.target_twist.linear.x
         self.anguler_pid_.setpoint = self.target_twist.angular.z
 
         #現在値をもとに推進力を計算
-        linear_force = self.linear_pid_(self.current_twist.linear_acceleration.x, dt=self.dt)
-        anguler_force = self.anguler_pid_(self.current_twist.angular_velocity.z, dt=self.dt)
+        linear_force = self.linear_pid_(self.current_twist.linear.x, dt=self.dt)
+        anguler_force = self.anguler_pid_(self.current_twist.angular.z, dt=self.dt)
 
         # 推進力を左右の推進力に分割
         left_force = linear_force + 0.5 * anguler_force * self.hull_width_
