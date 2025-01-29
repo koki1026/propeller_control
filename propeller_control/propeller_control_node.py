@@ -6,7 +6,10 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu
 from simple_pid import PID
 from sensor_msgs.msg import NavSatFix
+from rosgraph_msgs.msg import Clock
 from math import sqrt, cos, sin, pow
+
+M_PI = 3.14159265358979323846
 
 class PropellerControlNode(Node):
     def __init__(self):
@@ -64,10 +67,10 @@ class PropellerControlNode(Node):
         self.position.altitude = 0.0
 
         ##sim時間の取得
-        self.sim_time_sub = self.create_subscription(Float64, '/simtime', self.sim_time_callback, 10)
+        self.sim_time_sub = self.create_subscription(Clock, '/clock', self.sim_time_callback, 10)
         #sim時間が一定時間経過したときにPIDの計算と推進力の計算を行う
-        self.sim_time = Float64()
-        self.sim_time_pre = Float64()
+        self.sim_time = float()
+        self.sim_time_pre = float()
         self.calc_flg = False #sim時間が一定時間経過したかどうかのフラグ
         self.dt = 0.0
 
@@ -117,13 +120,13 @@ class PropellerControlNode(Node):
         self.position.altitude = alt
 
     def sim_time_callback(self, msg):
-        self.sim_time = msg
-        if self.sim_time.data - self.sim_time_pre.data > 0.1:
+        self.sim_time = msg.clock.sec + msg.clock.nanosec * 1e-9
+        if self.sim_time - self.sim_time_pre > 0.1:
             self.calc_flg = True
-            self.dt = self.sim_time.data - self.sim_time_pre.data
-            self.sim_time_pre.data = self.sim_time.data
+            self.dt = self.sim_time - self.sim_time_pre
+            self.sim_time_pre = self.sim_time
 
-    def deg2rad(self, deg)
+    def deg2rad(self, deg):
         return deg * M_PI / 180.0
         
     #速度の計算
@@ -136,12 +139,12 @@ class PropellerControlNode(Node):
         RY = 6356752.314245 #極半径(m)
         dx = lat2 - lat1
         dy = lon2 - lon1
-        mu = (lat1 + lat2) / 2.0
+        mu = (lon1 + lon2) / 2.0 #μ
         E = sqrt(1 - pow(RY / RX, 2.0)) #離心率
         W = sqrt(1 - pow(E * sin(mu), 2.0))
         M = RX * (1 - pow(E, 2.0)) / pow(W, 3.0) #子午線曲率半径
         N = RX / W #卯酉線曲率半径
-        return sqrt(pow(M * dy, 2.0) + pow(N * dx * cos(mu), 2.0)); // 距離[km]
+        return sqrt(pow(M * dy, 2.0) + pow(N * dx * cos(mu), 2.0)) #距離(m)
 
     # 推進力の計算
     def force_cal(self):
@@ -206,7 +209,6 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Shutting down PropellerControlNode...')
     finally:
-        node.listener.stop()
         node.destroy_node()
         rclpy.shutdown()
 
