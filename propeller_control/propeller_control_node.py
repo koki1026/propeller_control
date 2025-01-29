@@ -6,6 +6,7 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Imu
 from simple_pid import PID
 from sensor_msgs.msg import NavSatFix
+from math import sqrt, cos, sin, pow
 
 class PropellerControlNode(Node):
     def __init__(self):
@@ -68,6 +69,7 @@ class PropellerControlNode(Node):
         self.sim_time = Float64()
         self.sim_time_pre = Float64()
         self.calc_flg = False #sim時間が一定時間経過したかどうかのフラグ
+        self.dt = 0.0
 
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
@@ -118,7 +120,28 @@ class PropellerControlNode(Node):
         self.sim_time = msg
         if self.sim_time.data - self.sim_time_pre.data > 0.1:
             self.calc_flg = True
+            self.dt = self.sim_time.data - self.sim_time_pre.data
             self.sim_time_pre.data = self.sim_time.data
+
+    def deg2rad(self, deg)
+        return deg * M_PI / 180.0
+        
+    #速度の計算
+    def velocity_cal(self, lat1, lon1, lat2, lon2):
+        lat1 = self.deg2rad(lat1)
+        lon1 = self.deg2rad(lon1)
+        lat2 = self.deg2rad(lat2)
+        lon2 = self.deg2rad(lon2)
+        RX = 6378137.0 #赤道半径 (m)
+        RY = 6356752.314245 #極半径(m)
+        dx = lat2 - lat1
+        dy = lon2 - lon1
+        mu = (lat1 + lat2) / 2.0
+        E = sqrt(1 - pow(RY / RX, 2.0)) #離心率
+        W = sqrt(1 - pow(E * sin(mu), 2.0))
+        M = RX * (1 - pow(E, 2.0)) / pow(W, 3.0) #子午線曲率半径
+        N = RX / W #卯酉線曲率半径
+        return sqrt(pow(M * dy, 2.0) + pow(N * dx * cos(mu), 2.0)); // 距離[km]
 
     # 推進力の計算
     def force_cal(self):
@@ -126,15 +149,16 @@ class PropellerControlNode(Node):
             return
         self.calc_flg = False
 
-        #速度を計算
-        self.current_twist.linear.x = (self.position.latitude - self.pre_position.latitude) / (self.sim_time.data - self.sim_time_pre.data)
+        #速度を計算関数
+        self.velocity_cal()
+
         #目標値のセット
         self.linear_pid_.setpoint = self.target_twist.linear.x
         self.anguler_pid_.setpoint = self.target_twist.angular.z
 
         #現在値をもとに推進力を計算
-        linear_force = self.linear_pid_(self.current_twist.linear_acceleration.x)
-        anguler_force = self.anguler_pid_(self.current_twist.angular_velocity.z)
+        linear_force = self.linear_pid_(self.current_twist.linear_acceleration.x, dt=self.dt)
+        anguler_force = self.anguler_pid_(self.current_twist.angular_velocity.z, dt=self.dt)
 
         # 推進力を左右の推進力に分割
         left_force = linear_force + 0.5 * anguler_force * self.hull_width_
