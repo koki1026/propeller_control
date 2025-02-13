@@ -153,7 +153,7 @@ class PropellerControlNode(Node):
         self.calc_flg = False
 
         #速度を計算関数
-        self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude)
+        self.current_twist.linear.x = self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude) / self.dt
 
         #目標値のセット
         self.linear_pid_.setpoint = self.target_twist.linear.x
@@ -168,6 +168,8 @@ class PropellerControlNode(Node):
         right_force = linear_force - 0.5 * anguler_force * self.hull_width_
 
         # log
+        self.get_logger().info(f'current_twist: {self.current_twist.linear.x}, target_twist: {self.target_twist.linear.x}')
+        self.get_logger().info(f'current_twist_anguler: {self.current_twist.angular.z}, target_twist_anguler: {self.target_twist.angular.z}')
         self.get_logger().info(f'linear_force: {linear_force}, anguler_force: {anguler_force}, left_force: {left_force}, right_force: {right_force}')
 
         # 推進力をプロペラの回転数に変換
