@@ -121,7 +121,7 @@ class PropellerControlNode(Node):
 
     def sim_time_callback(self, msg):
         self.sim_time = msg.clock.sec + msg.clock.nanosec * 1e-9
-        if self.sim_time - self.sim_time_pre > 0.1:
+        if self.sim_time - self.sim_time_pre > 1.0:
             self.calc_flg = True
             self.dt = self.sim_time - self.sim_time_pre
             self.sim_time_pre = self.sim_time
@@ -137,14 +137,14 @@ class PropellerControlNode(Node):
         lon2 = self.deg2rad(lon2)
         RX = 6378137.0 #赤道半径 (m)
         RY = 6356752.314245 #極半径(m)
-        dx = lat2 - lat1
-        dy = lon2 - lon1
-        mu = (lon1 + lon2) / 2.0 #μ
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        mu = (lat1 + lat2) / 2.0 #μ
         E = sqrt(1 - pow(RY / RX, 2.0)) #離心率
         W = sqrt(1 - pow(E * sin(mu), 2.0))
         M = RX * (1 - pow(E, 2.0)) / pow(W, 3.0) #子午線曲率半径
         N = RX / W #卯酉線曲率半径
-        return sqrt(pow(M * dy, 2.0) + pow(N * dx * cos(mu), 2.0)) #距離(m)
+        return sqrt(pow(M * dlat, 2.0) + pow(N * dlon * cos(mu), 2.0)) #距離(m)
 
     # 推進力の計算
     def force_cal(self):
@@ -154,6 +154,13 @@ class PropellerControlNode(Node):
 
         #速度を計算関数
         self.current_twist.linear.x = self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude) / self.dt
+
+        # log
+        self.get_logger().info(f'pre_position: {self.pre_position.latitude}, {self.pre_position.longitude}, position: {self.position.latitude}, {self.position.longitude}')
+
+        #前回の位置を更新
+        self.pre_position.latitude = self.position.latitude
+        self.pre_position.longitude = self.position.longitude
 
         #目標値のセット
         self.linear_pid_.setpoint = self.target_twist.linear.x
@@ -175,8 +182,8 @@ class PropellerControlNode(Node):
         # 推進力をプロペラの回転数に変換
         self.left_prop_speed = Float64()
         self.right_prop_speed = Float64()
-        self.left_prop_speed.data = left_force * 100000
-        self.right_prop_speed.data = right_force * 100000
+        self.left_prop_speed.data = left_force
+        self.right_prop_speed.data = right_force
 
         # 値をマスク
         if self.left_prop_speed.data < 500.0 and 10.0 < self.right_prop_speed.data:
