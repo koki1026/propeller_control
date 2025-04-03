@@ -7,7 +7,7 @@ from sensor_msgs.msg import Imu
 from simple_pid import PID
 from sensor_msgs.msg import NavSatFix
 from rosgraph_msgs.msg import Clock
-from math import sqrt, cos, sin, pow
+from math import sqrt, cos, sin, pow, atan2
 
 M_PI = 3.14159265358979323846
 
@@ -77,6 +77,13 @@ class PropellerControlNode(Node):
         ## pidによる推進力の計算
         self.force_cal = self.create_timer(0.01, self.force_cal)
 
+        ##旋回方向を4タイプに分ける
+        ## 1.左前旋回
+        ## 2.右前旋回
+        ## 3.左後ろ旋回
+        ## 4.右後ろ旋回
+        self.turning_direction = 1
+
         #publisher
         self.left_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/left/thrust', 10)
         self.right_prop_pub = self.create_publisher(Float64, '/wamv/thrusters/right/thrust', 10)
@@ -121,7 +128,7 @@ class PropellerControlNode(Node):
 
     def sim_time_callback(self, msg):
         self.sim_time = msg.clock.sec + msg.clock.nanosec * 1e-9
-        if self.sim_time - self.sim_time_pre > 1.0:
+        if self.sim_time - self.sim_time_pre > 0.1:
             self.calc_flg = True
             self.dt = self.sim_time - self.sim_time_pre
             self.sim_time_pre = self.sim_time
@@ -145,6 +152,17 @@ class PropellerControlNode(Node):
         M = RX * (1 - pow(E, 2.0)) / pow(W, 3.0) #子午線曲率半径
         N = RX / W #卯酉線曲率半径
         return sqrt(pow(M * dlat, 2.0) + pow(N * dlon * cos(mu), 2.0)) #距離(m)
+    
+    #方位角の計算
+    def bearing_cal(self, lat1, lon1, lat2, lon2):
+        lat1 = self.deg2rad(lat1)
+        lon1 = self.deg2rad(lon1)
+        lat2 = self.deg2rad(lat2)
+        lon2 = self.deg2rad(lon2)
+        dlon = lon2 - lon1
+        y = sin(dlon) * cos(lat2)
+        x = cos(lat1) * sin(lat2) - sin(lat1) * cos(lat2) * cos(dlon)
+        return atan2(y, x)
 
     # 推進力の計算
     def force_cal(self):
@@ -153,7 +171,8 @@ class PropellerControlNode(Node):
         self.calc_flg = False
 
         #速度を計算関数
-        self.current_twist.linear.x = self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude) / self.dt
+        distance = self.velocity_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude) / self.dt
+        bearing = self.bearing_cal(self.pre_position.latitude, self.pre_position.longitude, self.position.latitude, self.position.longitude)
 
         # log
         self.get_logger().info(f'pre_position: {self.pre_position.latitude}, {self.pre_position.longitude}, position: {self.position.latitude}, {self.position.longitude}')
@@ -186,11 +205,21 @@ class PropellerControlNode(Node):
         self.right_prop_speed.data = right_force
 
         # 値をマスク
-        if self.left_prop_speed.data < 500.0 and 10.0 < self.right_prop_speed.data:
-            self.left_prop_speed.data = 500.0
-        elif -500.0 < self.left_prop_speed.data and self.right_prop_speed.data < 10.0:
-            self.right_prop_speed.data = -500.0
-        elif self.left_prop_speed.data < -2000.0:
+        # if self.left_prop_speed.data < 500.0 and 10.0 < self.right_prop_speed.data:
+        #     self.left_prop_speed.data = 500.0
+        # elif -500.0 < self.left_prop_speed.data and self.right_prop_speed.data < 10.0:
+        #     self.right_prop_speed.data = -500.0
+        # elif self.right_prop_speed.data < 500.0 and 10.0 < self.left_prop_speed.data:
+        #     self.right_prop_speed.data = 500.0
+        # elif -500.0 < self.right_prop_speed.data and self.left_prop_speed.data < 10.0:
+        #     self.left_prop_speed.data = -500.0
+        DEAD_BAND = 10.0
+        if abs(self.left_prop_speed.data) < DEAD_BAND:
+            self.left_prop_speed.data = 0.0
+        if abs(self.right_prop_speed.data) < DEAD_BAND:
+            self.right_prop_speed.data = 0.0
+
+        if self.left_prop_speed.data < -2000.0:
             self.left_prop_speed.data = -2000.0
         elif 2000.0 < self.left_prop_speed.data:
             self.left_prop_speed.data = 2000.0
@@ -199,10 +228,16 @@ class PropellerControlNode(Node):
             self.right_prop_speed.data = -2000.0
         elif 2000.0 < self.right_prop_speed.data:
             self.right_prop_speed.data = 2000.0
-        elif self.right_prop_speed.data < 500.0 and 10.0 < self.left_prop_speed.data:
-            self.right_prop_speed.data = 500.0
-        elif -500.0 < self.right_prop_speed.data and self.left_prop_speed.data < 10.0:
-            self.left_prop_speed.data = -500.0
+
+        ## terning_directionの決定
+        elif self.target_twist.angular.z >= 0.0 and self.target_twist.linear.x >= 0.0:
+            self.turning_direction = 1
+        elif self.target_twist.angular.z < 0.0 and self.target_twist.linear.x >= 0.0:
+            self.turning_direction = 2
+        elif self.target_twist.angular.z >= 0.0 and self.target_twist.linear.x < 0.0:
+            self.turning_direction = 3
+        elif self.target_twist.angular.z < 0.0 and self.target_twist.linear.x < 0.0:
+            self.turning_direction = 4
 
         # パブリッシュ
         self.left_prop_pub.publish(self.left_prop_speed)
